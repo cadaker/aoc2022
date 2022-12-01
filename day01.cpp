@@ -24,7 +24,7 @@ static input_type read_input(std::istream& is) {
 }
 
 long total_calories(std::vector<long> const& elf) {
-    return std::accumulate(elf.begin(), elf.end(), 0L, std::plus<>{});
+    return std::accumulate(elf.begin(), elf.end(), 0L);
 }
 
 template<std::forward_iterator Iterator>
@@ -37,15 +37,15 @@ Iterator take_n(size_t n, Iterator begin, Iterator end) {
 int main() {
     auto input = read_input(std::cin);
 
-    std::sort(input.begin(), input.end(), [](auto const& e0, auto const& e1) {
-        return total_calories(e0) > total_calories(e1);
-    });
+    std::vector<long> calories;
+    calories.reserve(input.size());
+    std::transform(input.begin(), input.end(), std::back_inserter(calories), total_calories);
 
-    std::cout << (input.empty() ? 0 : total_calories(input.front())) << "\n";
+    std::sort(calories.begin(), calories.end());
 
-    std::cout << std::accumulate(input.begin(), take_n(3, input.begin(), input.end()), 0L, [](long acc, std::vector<long> const& xs) {
-        return acc + total_calories(xs);
-    }) << "\n";
+    std::cout << (calories.empty() ? 0 : calories.back()) << "\n";
+
+    std::cout << std::accumulate(calories.rbegin(), take_n(3, calories.rbegin(), calories.rend()), 0L) << "\n";
 
     return 0;
 }
