@@ -1,12 +1,23 @@
+#include "algorithm.hpp"
 #include <iostream>
 #include <vector>
 #include <numeric>
+#include <algorithm>
+#include <iterator>
 
 enum rps {
-    rock,
-    paper,
-    scissors,
+    rock = 0,
+    paper = 1,
+    scissors = 2,
 };
+
+rps winner_against(rps choice) {
+    return static_cast<rps>((choice + 1) % 3);
+}
+
+rps loser_against(rps choice) {
+    return static_cast<rps>((choice + 2) % 3);
+}
 
 enum option {
     option_x,
@@ -26,41 +37,20 @@ std::vector<std::pair<rps, option>> parse_input(std::istream& is) {
 }
 
 int shape_score(rps shape) {
-    switch (shape) {
-        case rock: return 1;
-        case paper: return 2;
-        case scissors: return 3;
-        default: abort();
-    }
-}
-
-rps winning_option(rps shape) {
-    switch (shape) {
-        case rock: return paper;
-        case paper: return scissors;
-        case scissors: return rock;
-        default: abort();
-    }
-}
-
-rps losing_option(rps shape) {
-    switch (shape) {
-        case rock: return scissors;
-        case paper: return rock;
-        case scissors: return paper;
-        default: abort();
-    }
+    return shape + 1;
 }
 
 int outcome_score(rps opponent, rps you) {
-    if (you == winning_option(opponent)) {
+    if (you == winner_against(opponent)) {
         return 6;
-    } else if (opponent == winning_option(you)) {
+    } else if (opponent == winner_against(you)) {
         return 0;
     } else {
         return 3;
     }
 }
+
+using round = std::pair<rps, rps>;
 
 rps option_as_rps(option op) {
     switch (op) {
@@ -71,31 +61,36 @@ rps option_as_rps(option op) {
     }
 }
 
-int score1(std::pair<rps, option> const& round) {
-    return shape_score(option_as_rps(round.second)) + outcome_score(round.first, option_as_rps(round.second));
+round options_as_rps(std::pair<rps, option> const& p) {
+    return {p.first, option_as_rps(p.second)};
+}
+
+int score_round(round const& r) {
+    return shape_score(r.second) + outcome_score(r.first, r.second);
 }
 
 rps option_as_outcome(rps opponent, option outcome) {
     switch (outcome) {
-        case option_x: return losing_option(opponent);
+        case option_x: return loser_against(opponent);
         case option_y: return opponent;
-        case option_z: return winning_option(opponent);
+        case option_z: return winner_against(opponent);
         default: abort();
     }
 }
 
-int score2(std::pair<rps, option> const& round) {
-    rps const choice = option_as_outcome(round.first, round.second);
-    return shape_score(choice) + outcome_score(round.first, choice);
+round options_as_outcome(std::pair<rps, option> const& p) {
+    return {p.first, option_as_outcome(p.first, p.second)};
 }
 
 int main() {
     auto const input = parse_input(std::cin);
 
-    std::cout << std::accumulate(input.begin(), input.end(), 0L, [](long acc, auto const& round) {
-        return acc + score1(round);
-    }) << "\n";
-    std::cout << std::accumulate(input.begin(), input.end(), 0L, [](long acc, auto const& round) {
-        return acc + score2(round);
-    }) << "\n";
+    std::vector<round> rounds1;
+    std::transform(input.begin(), input.end(), std::back_inserter(rounds1), &options_as_rps);
+
+    std::vector<round> rounds2;
+    std::transform(input.begin(), input.end(), std::back_inserter(rounds2), &options_as_outcome);
+
+    std::cout << accumulate_map(rounds1.begin(), rounds1.end(), 0L, score_round) << "\n";
+    std::cout << accumulate_map(rounds2.begin(), rounds2.end(), 0L, score_round) << "\n";
 }
