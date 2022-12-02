@@ -1,3 +1,4 @@
+#include "algorithm.hpp"
 #include <iostream>
 #include <vector>
 #include <numeric>
@@ -37,9 +38,7 @@ Iterator take_n(size_t n, Iterator begin, Iterator end) {
 int main() {
     auto input = read_input(std::cin);
 
-    std::vector<long> calories;
-    calories.reserve(input.size());
-    std::transform(input.begin(), input.end(), std::back_inserter(calories), total_calories);
+    auto calories = map(input, total_calories);
 
     std::sort(calories.begin(), calories.end());
 

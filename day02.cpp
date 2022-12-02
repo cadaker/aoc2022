@@ -85,11 +85,8 @@ round options_as_outcome(std::pair<rps, option> const& p) {
 int main() {
     auto const input = parse_input(std::cin);
 
-    std::vector<round> rounds1;
-    std::transform(input.begin(), input.end(), std::back_inserter(rounds1), &options_as_rps);
-
-    std::vector<round> rounds2;
-    std::transform(input.begin(), input.end(), std::back_inserter(rounds2), &options_as_outcome);
+    auto rounds1 = map(input, options_as_rps);
+    auto rounds2 = map(input, options_as_outcome);
 
     std::cout << accumulate_map(rounds1.begin(), rounds1.end(), 0L, score_round) << "\n";
     std::cout << accumulate_map(rounds2.begin(), rounds2.end(), 0L, score_round) << "\n";
