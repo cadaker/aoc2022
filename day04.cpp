@@ -32,8 +32,14 @@ bool either_contains(std::pair<range, range> const& p) {
     return contains(p.first, p.second) || contains(p.second, p.first);
 }
 
+bool has_overlap(range const& r1, range const& r2) {
+    return (r1.start <= r2.start && r2.start <= r1.end) ||
+            (r2.start <= r1.start && r1.start <= r2.end);
+}
+
 int main() {
     auto input = parse_input(std::cin);
 
     std::cout << std::count_if(input.begin(), input.end(), either_contains) << "\n";
+    std::cout << std::count_if(input.begin(), input.end(), [](auto const& p) { return has_overlap(p.first, p.second); }) << "\n";
 }
