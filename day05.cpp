@@ -53,7 +53,7 @@ std::pair<stacks_t, std::vector<operation_t>> parse_input(std::istream& is) {
     return {std::move(stacks), std::move(operations)};
 }
 
-void move_crates1(stacks_t& stacks, operation_t const& op) {
+void move_crates(stacks_t& stacks, operation_t const& op, bool flip_order) {
     if (op.from >= stacks.size() || op.to >= stacks.size()) {
         std::cerr << "invalid stack size: " << op.count << " " << op.from << " " << op.to << std::endl;
         return;
@@ -68,46 +68,26 @@ void move_crates1(stacks_t& stacks, operation_t const& op) {
     auto start = src_stack.begin() + static_cast<ssize_t>(src_stack.size() - op.count);
     stack_t const tmp(start, src_stack.end());
     src_stack.erase(start, src_stack.end());
-    dst_stack.insert(dst_stack.end(), tmp.rbegin(), tmp.rend());
+    if (flip_order) {
+        dst_stack.insert(dst_stack.end(), tmp.rbegin(), tmp.rend());
+    } else {
+        dst_stack.insert(dst_stack.end(), tmp.begin(), tmp.end());
+    }
 }
 
-void move_crates2(stacks_t& stacks, operation_t const& op) {
-    if (op.from >= stacks.size() || op.to >= stacks.size()) {
-        std::cerr << "invalid stack size: " << op.count << " " << op.from << " " << op.to << std::endl;
-        return;
-    } else if (op.count > stacks[op.from].size()) {
-        std::cerr << "invalid crate count: " << op.count << " " << op.from << " " << op.to << std::endl;
-        return;
+void run_crane(stacks_t stacks, std::vector<operation_t> const& ops, bool flip_order, std::ostream& out) {
+    for (auto const& op : ops) {
+        move_crates(stacks, op, flip_order);
     }
-
-    auto& src_stack = stacks[op.from];
-    auto& dst_stack = stacks[op.to];
-
-    auto start = src_stack.begin() + static_cast<ssize_t>(src_stack.size() - op.count);
-    stack_t const tmp(start, src_stack.end());
-    src_stack.erase(start, src_stack.end());
-    dst_stack.insert(dst_stack.end(), tmp.begin(), tmp.end());
+    for (stack_t const& s : stacks) {
+        out << (s.empty() ? '!' : s.back());
+    }
+    out << std::endl;
 }
 
 int main() {
     auto const [stacks, operations] = parse_input(std::cin);
 
-    auto stacks1 = stacks;
-    for (auto const& op : operations) {
-        move_crates1(stacks1, op);
-    }
-
-    for (stack_t const& s : stacks1) {
-        std::cout << (s.empty() ? '!' : s.back());
-    }
-    std::cout << std::endl;
-
-    auto stacks2 = stacks;
-    for (auto const& op : operations) {
-        move_crates2(stacks2, op);
-    }
-    for (stack_t const& s : stacks2) {
-        std::cout << (s.empty() ? '!' : s.back());
-    }
-    std::cout << std::endl;
+    run_crane(stacks, operations, true, std::cout);
+    run_crane(stacks, operations, false, std::cout);
 }
