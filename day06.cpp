@@ -16,10 +16,10 @@ size_t count_different(std::string const& s) {
     return counts.size();
 }
 
-size_t find_marker(std::string const& s) {
-    for (size_t i = 0; i + 4 < s.size(); ++i) {
-        if (count_different(s.substr(i, 4)) == 4) {
-            return i + 4;
+size_t find_marker(std::string const& s, size_t len) {
+    for (size_t i = 0; i + len < s.size(); ++i) {
+        if (count_different(s.substr(i, len)) == len) {
+            return i + len;
         }
     }
     return std::string::npos;
@@ -28,5 +28,6 @@ size_t find_marker(std::string const& s) {
 int main() {
     std::string const input = read_input(std::cin);
 
-    std::cout << find_marker(input) << "\n";
+    std::cout << find_marker(input, 4) << "\n";
+    std::cout << find_marker(input, 14) << "\n";
 }
