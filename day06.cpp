@@ -9,10 +9,7 @@ std::string read_input(std::istream& is) {
 }
 
 size_t count_different(std::string const& s) {
-    std::unordered_set<char> counts;
-    for (char c : s) {
-        counts.insert(c);
-    }
+    std::unordered_set<char> counts(s.begin(), s.end());
     return counts.size();
 }
 
