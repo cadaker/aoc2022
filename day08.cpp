@@ -3,16 +3,15 @@
 #include <string>
 
 grid<long> parse_input(std::istream& is) {
-    size_t width = 0;
-    std::vector<long> data;
+    grid_builder<long> builder;
     std::string line;
     while (std::getline(is, line)) {
-        width = line.size();
         for (char c : line) {
-            data.push_back(c - '0');
+            builder.push_back(c - '0');
         }
+        builder.end_line();
     }
-    return {width, data.begin(), data.end()};
+    return std::move(builder).finish();
 }
 
 struct visible_t {

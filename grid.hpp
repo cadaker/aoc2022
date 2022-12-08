@@ -122,9 +122,18 @@ public:
 
     template<std::input_iterator Iter>
     grid(size_t width, Iter begin, Iter end)
-            : _width(width)
-            , _data(begin, end)
+            : grid{width, std::vector<T>(begin, end)}
     {
+    }
+
+    grid(size_t width, std::vector<long> data)
+            : _width(width)
+            , _data(std::move(data))
+    {
+        if (width > 0) {
+            long height = (_data.size() + width - 1) / width;
+            _data.resize(width*height);
+        }
     }
 
     grid(grid&&) noexcept = default;
@@ -332,5 +341,47 @@ private:
     }
 
     size_t _width;
+    std::vector<T> _data;
+};
+
+template<class T>
+class grid_builder {
+public:
+    grid_builder()
+    {}
+
+    template<class U>
+    grid_builder& push_back(U&& x) {
+        _data.push_back(std::forward<U&&>(x));
+        return *this;
+    }
+
+    template<class... Args>
+    grid_builder& emplace_back(Args&&... args) {
+        _data.emplace(std::forward<Args&&>(args)...);
+        return *this;
+    }
+
+    grid_builder& end_line() {
+        if (_width < 0) {
+            if (_data.empty()) {
+                throw std::invalid_argument("zero-width grid");
+            }
+            _width = _data.size();
+        } else if (_width > 0 && _data.size() % _width != 0) {
+            throw std::out_of_range("grid width mismatch");
+        }
+        return *this;
+    }
+
+    grid<T> finish() && {
+        if (_data.empty()) {
+            throw std::invalid_argument("zero-height grid");
+        }
+        return {static_cast<size_t>(_width), std::move(_data)};
+    }
+
+private:
+    ssize_t _width = -1;
     std::vector<T> _data;
 };
