@@ -57,6 +57,41 @@ grid<visible_t> mark_visible(grid<long> const& trees) {
     return visible;
 }
 
+template<class TreesIter>
+requires std::is_convertible_v<std::iter_value_t<TreesIter>, long>
+long scan(TreesIter begin, TreesIter end) {
+    if (begin == end) {
+        return 0;
+    }
+    long count = 0;
+    for (TreesIter it = begin+1; it != end; ++it) {
+        ++count;
+        if (*it >= *begin) {
+            break;
+        }
+    }
+    return count;
+}
+
+long score_at(grid<long> const& trees, long x, long y) {
+    long const east = scan(trees.row_iter_at(x, y), trees.row_end(y));
+    long const west = scan(trees.row_riter_at(x, y), trees.row_rend(y));
+    long const south = scan(trees.col_iter_at(x, y), trees.col_end(x));
+    long const north = scan(trees.col_riter_at(x, y), trees.col_rend(x));
+    return east * west * north * south;
+}
+
+grid<long> scenic_scores(grid<long> const& trees) {
+    grid<long> scores(trees.width(), trees.height());
+
+    for (long x = 0; x < trees.width(); ++x) {
+        for (long y = 0; y < trees.height(); ++y) {
+            scores.at(x, y) = score_at(trees, x, y);
+        }
+    }
+    return scores;
+}
+
 int main() {
     auto trees = parse_input(std::cin);
 
@@ -65,4 +100,7 @@ int main() {
     std::cout << std::count_if(visible.begin(), visible.end(), [](visible_t const& v) {
         return v.visible();
     }) << "\n";
+    auto scores = scenic_scores(trees);
+    auto it = std::max_element(scores.begin(), scores.end());
+    std::cout << (it == trees.end() ? -1 : *it) << "\n";
 }
