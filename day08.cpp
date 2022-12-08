@@ -26,51 +26,32 @@ struct visible_t {
     }
 };
 
+template<std::forward_iterator TreesIter, std::forward_iterator VisibleIter>
+requires std::is_convertible_v<std::iter_value_t<TreesIter>, long> &&
+         std::is_convertible_v<std::iter_reference_t<VisibleIter>, visible_t&>
+void mark_visible(TreesIter begin, TreesIter end, VisibleIter visible, bool (visible_t::*mem_ptr)) {
+    long highest = -1;
+    for (; begin != end; ++begin, ++visible) {
+        if (*begin > highest) {
+            (*visible).*mem_ptr = true;
+        }
+        highest = std::max(highest, *begin);
+    }
+}
+
 grid<visible_t> mark_visible(grid<long> const& trees) {
     grid<visible_t> visible(trees.width(), trees.height());
 
-    // From north
+    // From north/south
     for (long x = 0; x < trees.width(); ++x) {
-        long highest = -1;
-        for (long y = 0; y < trees.height(); ++y) {
-            if (trees.at(x,y) > highest) {
-                visible.at(x,y).visible_north = true;
-            }
-            highest = std::max(highest, trees.at(x,y));
-        }
+        mark_visible(trees.col_begin(x), trees.col_end(x), visible.col_begin(x), &visible_t::visible_north);
+        mark_visible(trees.col_rbegin(x), trees.col_rend(x), visible.col_rbegin(x), &visible_t::visible_south);
     }
 
-    // From south
-    for (long x = 0; x < trees.width(); ++x) {
-        long highest = -1;
-        for (long y = trees.height()-1; y >= 0; --y) {
-            if (trees.at(x,y) > highest) {
-                visible.at(x,y).visible_south = true;
-            }
-            highest = std::max(highest, trees.at(x,y));
-        }
-    }
-
-    // From west
+    // From west/east
     for (long y = 0; y < trees.height(); ++y) {
-        long highest = -1;
-        for (long x = 0; x < trees.width(); ++x) {
-            if (trees.at(x,y) > highest) {
-                visible.at(x,y).visible_west = true;
-            }
-            highest = std::max(highest, trees.at(x,y));
-        }
-    }
-
-    // From east
-    for (long y = 0; y < trees.height(); ++y) {
-        long highest = -1;
-        for (long x = trees.width()-1; x >= 0; --x) {
-            if (trees.at(x,y) > highest) {
-                visible.at(x,y).visible_east = true;
-            }
-            highest = std::max(highest, trees.at(x,y));
-        }
+        mark_visible(trees.row_begin(y), trees.row_end(y), visible.row_begin(y), &visible_t::visible_west);
+        mark_visible(trees.row_rbegin(y), trees.row_rend(y), visible.row_rbegin(y), &visible_t::visible_east);
     }
 
     return visible;
