@@ -59,6 +59,11 @@ struct coord_hash {
     }
 };
 
+struct rope_t {
+    // First one is the head.
+    std::vector<coord_t> knots;
+};
+
 coord_t step(coord_t pos, dir_t dir) {
     long dx = 0;
     long dy = 0;
@@ -91,26 +96,30 @@ coord_t move_tail(coord_t head_pos, coord_t tail_pos) {
     return {move_tail_coord(head_pos.x, tail_pos.x), move_tail_coord(head_pos.y, tail_pos.y)};
 }
 
-std::pair<coord_t, coord_t> move(coord_t head_pos, coord_t tail_pos, dir_t dir) {
-    coord_t const new_head_pos = step(head_pos, dir);
-    if (!adjacent(new_head_pos, tail_pos)) {
-        return {new_head_pos, move_tail(new_head_pos, tail_pos)};
+coord_t follow(coord_t head_pos, coord_t tail_pos) {
+    if (!adjacent(head_pos, tail_pos)) {
+        return move_tail(head_pos, tail_pos);
     } else {
-        return {new_head_pos, tail_pos};
+        return tail_pos;
     }
 }
 
-auto move(std::vector<op_t> const& ops) {
-    coord_t head_pos = {0, 0};
-    coord_t tail_pos = {0, 0};
-    std::unordered_set<coord_t, coord_hash> tail_positions = {tail_pos};
+auto move(std::vector<op_t> const& ops, size_t rope_len) {
+    rope_t rope;
+    rope.knots.resize(rope_len);
+    std::unordered_set<coord_t, coord_hash> tail_positions = {{0,0}};
+
+    if (rope_len == 0) {
+        return tail_positions;
+    }
 
     for (op_t op : ops) {
-        for (long i = 0; i < op.steps; ++i) {
-            auto [new_head_pos, new_tail_pos] = move(head_pos, tail_pos, op.dir);
-            tail_positions.insert(new_tail_pos);
-            head_pos = new_head_pos;
-            tail_pos = new_tail_pos;
+        for (long s = 0; s < op.steps; ++s) {
+            rope.knots.front() = step(rope.knots.front(), op.dir);
+            for (size_t i = 1; i < rope.knots.size(); ++i) {
+                rope.knots[i] = follow(rope.knots[i-1], rope.knots[i]);
+            }
+            tail_positions.insert(rope.knots.back());
         }
     }
     return tail_positions;
@@ -119,5 +128,6 @@ auto move(std::vector<op_t> const& ops) {
 int main() {
     auto const input = parse_input(std::cin);
 
-    std::cout << move(input).size() << "\n";
+    std::cout << move(input, 2).size() << "\n";
+    std::cout << move(input, 10).size() << "\n";
 }
