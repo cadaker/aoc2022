@@ -1,3 +1,4 @@
+#include "grid.hpp"
 #include <iostream>
 #include <vector>
 
@@ -34,6 +35,22 @@ std::vector<long> process_signal(std::vector<op_t> const& ops) {
 
 const size_t samples[] = {20, 60, 100, 140, 180, 220};
 
+grid<char> draw_signal(std::vector<long> const& signal) {
+    grid<char> screen(40, 6);
+    for (long y = 0; y < screen.height(); ++y) {
+        for (long x = 0; x < screen.width(); ++x) {
+            auto const i = static_cast<size_t>(y*screen.width() + x);
+            long const reg = signal.at(i);
+            if (reg-1 <= x && x <= reg+1) {
+                screen.at(x, y) = '#';
+            } else {
+                screen.at(x, y) = ' ';
+            }
+        }
+    }
+    return screen;
+}
+
 int main() {
     auto const ops = parse_input(std::cin);
     auto const signal = process_signal(ops);
@@ -43,4 +60,12 @@ int main() {
         sum += signal.at(i-1) * i;
     }
     std::cout << sum << "\n";
+
+    auto const screen = draw_signal(signal);
+    for (long y = 0; y < screen.height(); ++y) {
+        for (long x = 0; x < screen.width(); ++x) {
+            std::cout << screen.at(x, y);
+        }
+        std::cout << "\n";
+    }
 }
