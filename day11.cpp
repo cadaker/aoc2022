@@ -5,6 +5,7 @@
 #include <deque>
 #include <functional>
 #include <algorithm>
+#include <numeric>
 
 struct monkey_t {
     long id = -1;
@@ -113,12 +114,14 @@ std::vector<monkey_t> parse_input(std::istream& is) {
     }
 }
 
-long process_monkey(std::vector<monkey_t>& monkeys, monkey_t& current_monkey) {
+using worry_reduction_function = std::function<long(long)>;
+
+long process_monkey(std::vector<monkey_t>& monkeys, worry_reduction_function const& worry_reduction, monkey_t& current_monkey) {
     long items_processed = 0;
     while (!current_monkey.items.empty()) {
         long item = current_monkey.items.front();
         current_monkey.items.pop_front();
-        item = current_monkey.operation(item) / 3;
+        item = worry_reduction(current_monkey.operation(item));
         if (item % current_monkey.divisible_test == 0) {
             monkeys.at(current_monkey.true_target).items.push_back(item);
         } else {
@@ -129,16 +132,16 @@ long process_monkey(std::vector<monkey_t>& monkeys, monkey_t& current_monkey) {
     return items_processed;
 }
 
-void monkeys_round(std::vector<monkey_t>& monkeys, std::vector<long>& monkey_activities) {
+void monkeys_round(std::vector<monkey_t>& monkeys, worry_reduction_function const& worry_reduction, std::vector<long>& monkey_activities) {
     for (size_t i = 0; i < monkeys.size(); ++i) {
-        monkey_activities.at(i) += process_monkey(monkeys, monkeys.at(i));
+        monkey_activities.at(i) += process_monkey(monkeys, worry_reduction, monkeys.at(i));
     }
 }
 
-std::vector<long> process_monkeys(std::vector<monkey_t>& monkeys, size_t rounds) {
+std::vector<long> process_monkeys(std::vector<monkey_t> monkeys, worry_reduction_function const& worry_reduction, size_t rounds) {
     std::vector<long> activities(monkeys.size());
     for (size_t round = 0; round < rounds; ++round) {
-        monkeys_round(monkeys, activities);
+        monkeys_round(monkeys, worry_reduction, activities);
     }
     return activities;
 }
@@ -157,6 +160,13 @@ long monkey_business(std::vector<long> monkey_activities) {
 int main() {
     auto monkeys = parse_input(std::cin);
 
-    auto activities = process_monkeys(monkeys, 20);
-    std::cout << monkey_business(activities) << "\n";
+    auto activities20 = process_monkeys(monkeys, [](long worry) { return worry / 3; }, 20);
+    std::cout << monkey_business(activities20) << "\n";
+
+    long const worry_modulus = std::accumulate(monkeys.begin(), monkeys.end(), 1, [](long acc, monkey_t const& m) {
+        return acc * m.divisible_test;
+    });
+
+    auto activities10000 = process_monkeys(monkeys, [worry_modulus](long worry) { return worry % worry_modulus; }, 10000);
+    std::cout << monkey_business(activities10000) << "\n";
 }
