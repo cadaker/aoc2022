@@ -3,6 +3,7 @@
 #include <vector>
 #include <queue>
 #include <limits>
+#include <functional>
 
 struct coord {
     long x;
@@ -90,7 +91,7 @@ std::vector<coord> neighbours(coord pos, long width, long height) {
     return neighbours;
 }
 
-grid<long> dijkstra(grid<long> const& map, coord start) {
+grid<long> dijkstra(grid<long> const& map, coord start, std::function<bool(coord, coord)> const& filter) {
     grid<long> distance(map.width(), map.height(), std::numeric_limits<long>::max());
     priority_queue<long, coord> pq;
     pq.push(0, start);
@@ -101,7 +102,7 @@ grid<long> dijkstra(grid<long> const& map, coord start) {
             distance.at(pos.x, pos.y) = dist;
 
             for (auto n : neighbours(pos, map.width(), map.height())) {
-                if (map.at(n.x, n.y) <= map.at(pos.x, pos.y) + 1 && distance.at(n.x, n.y) > dist+1) {
+                if (filter(pos, n) && distance.at(n.x, n.y) > dist+1) {
                     pq.push(dist+1, n);
                 }
             }
@@ -111,8 +112,24 @@ grid<long> dijkstra(grid<long> const& map, coord start) {
 }
 
 int main() {
-    input data = parse_input(std::cin);
+    auto const [map, start, end] = parse_input(std::cin);
 
-    auto distances = dijkstra(data.map, data.start);
-    std::cout << distances.at(data.end.x, data.end.y) << "\n";
+    auto distances = dijkstra(map, start, [&](coord src, coord dst) {
+        return map.at(dst.x, dst.y) <= map.at(src.x, src.y)+1;
+    });
+    std::cout << distances.at(end.x, end.y) << "\n";
+
+    auto reverse_distances = dijkstra(map, end, [&](coord src, coord dst) {
+        return map.at(dst.x, dst.y)+1 >= map.at(src.x, src.y);
+    });
+    std::vector<long> start_distances;
+    for (long y = 0; y < map.height(); ++y) {
+        for (long x = 0; x < map.width(); ++x) {
+            if (map.at(x, y) == 0 && reverse_distances.at(x, y)) {
+                start_distances.push_back(reverse_distances.at(x, y));
+            }
+        }
+    }
+    auto it = std::min_element(start_distances.begin(), start_distances.end());
+    std::cout << (it != start_distances.end() ? *it : -1) << "\n";
 }
