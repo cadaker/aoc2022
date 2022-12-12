@@ -120,6 +120,12 @@ public:
     {
     }
 
+    grid(size_t width, size_t height, T const& init)
+            : _width(width)
+            , _data(width * height, init)
+    {
+    }
+
     template<std::input_iterator Iter>
     grid(size_t width, Iter begin, Iter end)
             : grid{width, std::vector<T>(begin, end)}
