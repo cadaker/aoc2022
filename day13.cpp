@@ -126,6 +126,19 @@ int compare(msg const& m1, msg const& m2) {
     }
 }
 
+std::strong_ordering operator<=>(msg const& m1, msg const& m2) {
+    return compare(m1, m2) <=> 0;
+}
+
+bool operator==(msg const& m1, msg const& m2) {
+    return compare(m1, m2) == 0;
+}
+
+namespace {
+    msg const divider2 = msg(msg_vector{msg(msg_vector{msg(2)})});
+    msg const divider6 = msg(msg_vector{msg(msg_vector{msg(6)})});
+}
+
 int main() {
     auto const input = parse_input(std::cin);
 
@@ -136,4 +149,17 @@ int main() {
         }
     }
     std::cout << index_sum << "\n";
+
+    std::vector<msg> all_messages = {divider2, divider6};
+    for (auto const& p : input) {
+        all_messages.push_back(p.first);
+        all_messages.push_back(p.second);
+    }
+    std::sort(all_messages.begin(), all_messages.end());
+
+    auto it2 = std::find(all_messages.begin(), all_messages.end(), divider2);
+    auto it6 = std::find(all_messages.begin(), all_messages.end(), divider6);
+    size_t const index2 = (it2 - all_messages.begin())+1;
+    size_t const index6 = (it6 - all_messages.begin())+1;
+    std::cout << (index2*index6) << "\n";
 }
