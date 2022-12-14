@@ -62,12 +62,18 @@ struct offset_map {
 
 offset_map make_map(std::vector<trace> const& traces) {
     auto [mn, mx] = bounds(traces);
+    // Include the sand source (500, 0) in the bounds.
     mn.y = std::min(mn.y, 0L);
+    mx.y = std::max(mx.y, 0L);
     mn.x = std::min(mn.x, 500L);
     mx.x = std::max(mx.x, 500L);
 
+    // Include a couple of extra, to support the optional floor.
+    long const height = mx.y - mn.y + 6;
+    // Support a massive triangle all the way from the top.
+    mn.x = std::min(mn.x, 500 - height - 1);
+    mx.x = std::max(mx.x, 500 + height + 1);
     long const width = mx.x - mn.x + 3;
-    long const height = mx.y - mn.y + 3;
 
     return {{mn.x-1, mn.y-1}, {static_cast<size_t>(width), static_cast<size_t>(height)}};
 }
@@ -96,10 +102,16 @@ void paint_rocks(offset_map &map, trace const& tr) {
     }
 }
 
-offset_map create_map(std::vector<trace> const& traces) {
+offset_map create_map(std::vector<trace> const& traces, bool floor) {
     auto map = make_map(traces);
     for (auto const& tr : traces) {
         paint_rocks(map, tr);
+    }
+    if (floor) {
+        auto [mn, mx] = bounds(traces);
+        long const floor_y = mx.y + 2;
+        paint_rocks(map, {{map.offset.x, floor_y},
+                          {map.offset.x + map.map.width() - 1, floor_y}});
     }
     return map;
 }
@@ -139,9 +151,21 @@ size_t drop_until_done(offset_map& map, coord sand_pos) {
     return count;
 }
 
+size_t drop_until_blocked(offset_map& map, coord sand_pos) {
+    size_t count = 0;
+    while (map.map.at(sand_pos.x - map.offset.x, sand_pos.y - map.offset.y) == 0) {
+        drop_sand_grain(map, sand_pos);
+        ++count;
+    }
+    return count;
+}
+
 int main() {
     auto traces = parse_input(std::cin);
-    auto map = create_map(traces);
+    auto map = create_map(traces, false);
 
     std::cout << drop_until_done(map, {500, 0}) << "\n";
+
+    map = create_map(traces, true);
+    std::cout << drop_until_blocked(map, {500, 0}) << "\n";
 }
