@@ -64,6 +64,10 @@ struct interval {
     }
 };
 
+interval truncate(interval const& intvl1, interval const& intvl2) {
+    return {std::max(intvl1.begin, intvl2.begin), std::min(intvl1.end, intvl2.end)};
+}
+
 interval overlap_union(interval const& intvl1, interval const& intvl2) {
     return {std::min(intvl1.begin, intvl2.begin), std::max(intvl1.end, intvl2.end)};
 }
@@ -107,14 +111,18 @@ interval cover_at_y(reading const& r, long y) {
 
 const long Y = 2'000'000;
 
-size_t union_size(std::vector<interval> const& intervals) {
+std::vector<interval> union_of(std::vector<interval> const& intervals) {
     interval_union un;
     for (interval const& i : intervals) {
         if (!i.empty()) {
             un.add(i);
         }
     }
-    auto united = un.get_intervals();
+    return un.get_intervals();
+}
+
+size_t union_size(std::vector<interval> const& intervals) {
+    auto united = union_of(intervals);
     return accumulate_map(united.begin(), united.end(), 0UL, [](auto const& i) { return i.size(); });
 }
 
@@ -128,10 +136,54 @@ size_t unique_beacons_at(std::vector<reading> const& readings, long y) {
     return xs.size();
 }
 
+long scan_line(std::vector<interval> const& intervals, long y, long min_x, long max_x) {
+    auto const max_size = static_cast<size_t>(max_x - min_x + 1);
+
+    std::vector<interval> const united = union_of(intervals);
+    if (united.size() == 1) {
+        interval const trunc = truncate(united[0], {min_x, max_x+1});
+        if (trunc.size() == max_size - 1) {
+            std::cout << "Single point at border of y = " << y << "\n";
+            if (trunc.begin == min_x) {
+                return min_x;
+            } else {
+                return max_x;
+            }
+        } else if (trunc.size() < max_size - 1) {
+            std::cout << "Too few points at y = " << y << "\n";
+        }
+    } else if (united.size() == 2) {
+        interval const trunc0 = truncate(united[0], {min_x, max_x+1});
+        interval const trunc1 = truncate(united[1], {min_x, max_x+1});
+        if (trunc0.size() + trunc1.size() == max_size - 1) {
+            return united[0].end;
+        } else {
+            std::cout << "Too many points (split in two) at y = " << y << "\n";
+        }
+    } else if (united.size() > 1) {
+        std::cout << "Too many points at y = " << y << "\n";
+    }
+    return min_x-1;
+}
+
+coord find_unique_uncovered(std::vector<reading> const& readings, long min_y, long max_y, long min_x, long max_x) {
+    for (long y = min_y; y <= max_y; ++y) {
+        std::vector<interval> const intervals = map(readings, [y](reading const& r) { return cover_at_y(r, y);});
+        long x = scan_line(intervals, y, min_x, max_x);
+        if (x != min_x-1) {
+            return {x, y};
+        }
+    }
+    return {min_x-1, min_y-1};
+}
+
 int main() {
     auto input = parse_input(std::cin);
 
     std::vector<interval> const intervals = map(input, [](reading const& r) { return cover_at_y(r, Y);});
 
     std::cout << (union_size(intervals) - unique_beacons_at(input, Y)) << "\n";
+
+    auto const pos = find_unique_uncovered(input, 0, 4'000'000, 0, 4'000'000);
+    std::cout << (pos.x * 4'000'000 + pos.y) << "\n";
 }
