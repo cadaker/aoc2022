@@ -5,6 +5,7 @@
 #include <regex>
 #include <cstdlib>
 #include <unordered_set>
+#include <algorithm>
 
 struct coord {
     long x = 0;
@@ -57,6 +58,41 @@ struct interval {
     [[nodiscard]] bool empty() const {
         return begin >= end;
     }
+
+    [[nodiscard]] size_t size() const {
+        return (begin <= end) ? static_cast<size_t> (end - begin) : 0;
+    }
+};
+
+interval overlap_union(interval const& intvl1, interval const& intvl2) {
+    return {std::min(intvl1.begin, intvl2.begin), std::max(intvl1.end, intvl2.end)};
+}
+
+class interval_union {
+public:
+    interval_union() = default;
+
+    void add(interval const& intvl) {
+        auto first = std::lower_bound(intervals.begin(), intervals.end(), intvl, [](interval const& el, interval const& intvl) {
+            return el.end < intvl.begin;
+        });
+        auto last = std::upper_bound(intervals.begin(), intervals.end(), intvl, [](interval const& intvl, interval const& el) {
+            return intvl.end < el.begin;
+        });
+        interval new_intvl = intvl;
+        for (auto it = first; it != last; ++it) {
+            new_intvl = overlap_union(new_intvl, *it);
+        }
+        intervals.erase(first, last);
+        intervals.insert(first, new_intvl);
+    }
+
+    [[nodiscard]] std::vector<interval> get_intervals() const {
+        return intervals;
+    }
+
+private:
+    std::vector<interval> intervals;
 };
 
 interval cover_at_y(reading const& r, long y) {
@@ -72,13 +108,14 @@ interval cover_at_y(reading const& r, long y) {
 const long Y = 2'000'000;
 
 size_t union_size(std::vector<interval> const& intervals) {
-    std::unordered_set<long> points;
-    for (interval const& intl : intervals) {
-        for (long x = intl.begin; x < intl.end; ++x) {
-            points.insert(x);
+    interval_union un;
+    for (interval const& i : intervals) {
+        if (!i.empty()) {
+            un.add(i);
         }
     }
-    return points.size();
+    auto united = un.get_intervals();
+    return accumulate_map(united.begin(), united.end(), 0UL, [](auto const& i) { return i.size(); });
 }
 
 size_t unique_beacons_at(std::vector<reading> const& readings, long y) {
