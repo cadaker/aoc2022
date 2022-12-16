@@ -165,10 +165,109 @@ long search(valves_t const& valves, distances_t const& distances, size_t start_i
     return best_flow;
 }
 
+struct state2_t {
+    long current_time = 0;
+    size_t destination_1 = 0;
+    long distance_left_1 = 0;
+    size_t destination_2 = 0;
+    long distance_left_2 = 0;
+    valve_set open_valves{};
+    long total_flow = 0;
+};
+
+constexpr size_t const REMAIN = std::numeric_limits<size_t>::max();
+
+std::vector<size_t> find_destinations(
+        valves_t const& valves,
+        distances_t const& distances,
+        valve_set const& open_valves,
+        long current_time,
+        size_t destination,
+        long distance_left) {
+    if (distance_left > 0 || destination == REMAIN) {
+        return {destination};
+    }
+    std::vector<size_t> destinations;
+    for (valve_t const& valve : valves) {
+        if (valve.flow > 0 && !open_valves.contains(valve.id) && distances.at(destination).at(valve.id) + 1 < current_time) {
+            destinations.push_back(valve.id);
+        }
+    }
+    if (destinations.empty()) {
+        destinations.push_back(REMAIN);
+    }
+    return destinations;
+}
+
+
+long search2(valves_t const& valves, distances_t const& distances, size_t start_id) {
+    long best_flow = 0;
+    std::deque<state2_t> queue = {state2_t{26, start_id, 0, start_id, 0, {}, 0}};
+    while (!queue.empty()) {
+        state2_t state = std::move(queue.front());
+        queue.pop_front();
+        if (state.total_flow > best_flow) {
+            best_flow = state.total_flow;
+        }
+
+        auto const destinations_1 = find_destinations(
+                valves,
+                distances,
+                state.open_valves,
+                state.current_time,
+                state.destination_1,
+                state.distance_left_1);
+        auto const destinations_2 = find_destinations(
+                valves,
+                distances,
+                state.open_valves,
+                state.current_time,
+                state.destination_2,
+                state.distance_left_2);
+        for (size_t const dest1 : destinations_1) {
+            for (size_t const dest2 : destinations_2) {
+                if (dest1 != dest2) {
+                    state2_t new_state = state;
+                    if (dest1 == REMAIN) {
+                        new_state.destination_1 = dest1;
+                        new_state.distance_left_1 = state.current_time;
+                    } else if (new_state.destination_1 != dest1) {
+                        new_state.distance_left_1 = distances.at(new_state.destination_1).at(dest1) + 1;
+                        new_state.destination_1 = dest1;
+                    }
+                    if (dest2 == REMAIN) {
+                        new_state.destination_2 = dest2;
+                        new_state.distance_left_2 = state.current_time;
+                    } else if (new_state.destination_2 != dest2) {
+                        new_state.distance_left_2 = distances.at(new_state.destination_2).at(dest2) + 1;
+                        new_state.destination_2 = dest2;
+                    }
+                    long const time_to_forward = std::min(new_state.distance_left_1, new_state.distance_left_2);
+                    new_state.current_time -= time_to_forward;
+                    new_state.distance_left_1 -= time_to_forward;
+                    new_state.distance_left_2 -= time_to_forward;
+                    // Turn on the valves
+                    if (dest1 != REMAIN && new_state.distance_left_1 == 0 && !new_state.open_valves.contains(new_state.destination_1)) {
+                        new_state.open_valves.add(new_state.destination_1);
+                        new_state.total_flow += new_state.current_time * valves.at(new_state.destination_1).flow;
+                    }
+                    if (dest2 != REMAIN && new_state.distance_left_2 == 0 && !new_state.open_valves.contains(new_state.destination_2)) {
+                        new_state.open_valves.add(new_state.destination_2);
+                        new_state.total_flow += new_state.current_time * valves.at(new_state.destination_2).flow;
+                    }
+                    queue.push_back(new_state);
+                }
+            }
+        }
+    }
+    return best_flow;
+}
+
 int main() {
     index_mapper mapper;
     auto valves = parse_input(std::cin, mapper);
     distances_t const distances = compute_distances(valves);
 
     std::cout << search(valves, distances, mapper.map("AA")) << "\n";
+    std::cout << search2(valves, distances, mapper.map("AA")) << "\n";
 }
