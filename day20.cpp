@@ -61,44 +61,22 @@ private:
     std::unordered_map<T, size_t> item_positions;
 };
 
-struct indexed_item {
-    long item;
-    size_t index;
-
-    bool operator==(indexed_item const&) const = default;
-};
-
-namespace std {
-    template<>
-    struct hash<indexed_item> {
-        size_t operator()(indexed_item const& it) const {
-            return std::hash<long>{}(it.item) ^ ~std::hash<size_t>{}(it.index);
-        }
-    };
-}
-
-std::vector<indexed_item> index_duplicates(std::vector<long> const& v) {
-    std::unordered_map<long, size_t> counts;
-    std::vector<indexed_item> ret;
-    ret.reserve(v.size());
-    for (long x : v) {
-        ret.push_back({x, counts[x]++});
-    }
-    return ret;
-}
-
 int main() {
     auto const input = parse_input(std::cin);
-    auto const indexed_items = index_duplicates(input);
-
-    cyclic_buffer<indexed_item> buffer(indexed_items);
-    for (auto const x : indexed_items) {
-        buffer.shift_item(x, x.item);
+    std::vector<size_t> input_indices(input.size());
+    for (size_t i = 0; i < input.size(); ++i) {
+        input_indices[i] = i;
     }
-    long const index0 = static_cast<long>(buffer.find({0, 0}));
+
+    cyclic_buffer<size_t> buffer(input_indices);
+    for (size_t i = 0; i < input.size(); ++i) {
+        buffer.shift_item(i, input[i]);
+    }
+    size_t const input_index0 = std::find(input.begin(), input.end(), 0) - input.begin();
+    long const index0 = static_cast<long>(buffer.find(input_index0));
     long const n = static_cast<long>(input.size());
     std::cout << (
-            buffer.get_items().at(modulo(index0+1000, n)).item +
-            buffer.get_items().at(modulo(index0+2000, n)).item +
-            buffer.get_items().at(modulo(index0+3000, n)).item) << "\n";
+            input.at(buffer.get_items().at(modulo(index0+1000, n))) +
+            input.at(buffer.get_items().at(modulo(index0+2000, n))) +
+            input.at(buffer.get_items().at(modulo(index0+3000, n)))) << "\n";
 }
