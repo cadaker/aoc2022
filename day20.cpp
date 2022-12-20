@@ -1,3 +1,4 @@
+#include "algorithm.hpp"
 #include <iostream>
 #include <string>
 #include <vector>
@@ -61,22 +62,43 @@ private:
     std::unordered_map<T, size_t> item_positions;
 };
 
-int main() {
-    auto const input = parse_input(std::cin);
-    std::vector<size_t> input_indices(input.size());
-    for (size_t i = 0; i < input.size(); ++i) {
-        input_indices[i] = i;
+cyclic_buffer<size_t> index_buffer(size_t n) {
+    std::vector<size_t> ret(n);
+    for (size_t i = 0; i < n; ++i) {
+        ret[i] = i;
     }
+    return cyclic_buffer{std::move(ret)};
+}
 
-    cyclic_buffer<size_t> buffer(input_indices);
+void mix(std::vector<long> const& input, cyclic_buffer<size_t>& buffer) {
     for (size_t i = 0; i < input.size(); ++i) {
         buffer.shift_item(i, input[i]);
     }
+}
+
+long coordinates(std::vector<long> const& input, cyclic_buffer<size_t> const& buffer) {
     size_t const input_index0 = std::find(input.begin(), input.end(), 0) - input.begin();
-    long const index0 = static_cast<long>(buffer.find(input_index0));
+    long const buffer_index0 = static_cast<long>(buffer.find(input_index0));
     long const n = static_cast<long>(input.size());
-    std::cout << (
-            input.at(buffer.get_items().at(modulo(index0+1000, n))) +
-            input.at(buffer.get_items().at(modulo(index0+2000, n))) +
-            input.at(buffer.get_items().at(modulo(index0+3000, n)))) << "\n";
+    return input.at(buffer.get_items().at(modulo(buffer_index0+1000, n))) +
+           input.at(buffer.get_items().at(modulo(buffer_index0+2000, n))) +
+           input.at(buffer.get_items().at(modulo(buffer_index0+3000, n)));
+}
+
+int main() {
+    auto const input = parse_input(std::cin);
+
+    auto buffer = index_buffer(input.size());
+    mix(input, buffer);
+
+    std::cout << coordinates(input, buffer) << "\n";
+
+    constexpr long KEY = 811589153;
+
+    std::vector<long> const scrambled_input = map(input, [KEY](long x) { return x * KEY; });
+    buffer = index_buffer(input.size());
+    for (size_t iter = 0; iter < 10; ++iter) {
+        mix(scrambled_input, buffer);
+    }
+    std::cout << coordinates(scrambled_input, buffer) << "\n";
 }
