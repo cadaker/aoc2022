@@ -79,7 +79,7 @@ public:
     }
 
     typename grid_iterator::difference_type operator-(grid_iterator const& i) const {
-        return (i.ptr() - ptr()) / _step;
+        return (ptr() - i.ptr()) / _step;
     }
 
     typename grid_iterator::reference operator[](typename grid_iterator::difference_type n) const {
@@ -132,7 +132,7 @@ public:
     {
     }
 
-    grid(size_t width, std::vector<long> data)
+    grid(size_t width, std::vector<T> data)
             : _width(width)
             , _data(std::move(data))
     {
