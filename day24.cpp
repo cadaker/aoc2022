@@ -98,7 +98,7 @@ std::vector<grid<char>> build_3d_map(long width, long height, std::vector<blizza
     return map;
 }
 
-long search(std::vector<grid<char>> const& map, coord start, coord end) {
+long search(std::vector<grid<char>> const& map, long init_time, coord start, coord end) {
     long const length = static_cast<long>(map.size());
     long const width = map[0].width();
     long const height = map[0].height();
@@ -110,7 +110,7 @@ long search(std::vector<grid<char>> const& map, coord start, coord end) {
     };
 
     // We may initially have to stand and wait until we can enter the start square...
-    long start_time = 1;
+    long start_time = init_time + 1;
     while (map[modulo(start_time, length)].at(start.x, start.y) != 0) {
         ++start_time;
     }
@@ -143,6 +143,11 @@ long search(std::vector<grid<char>> const& map, coord start, coord end) {
 int main() {
     auto const [width, height, blizzards] = parse_input(std::cin);
 
+    auto const map = build_3d_map(width, height, blizzards);
     // +1 to include moving into the "exit" square outside the map
-    std::cout << (search(build_3d_map(width, height, blizzards), {0,0}, {width-1,height-1})+1) << "\n";
+    long const to_end = search(map, 0, {0,0}, {width-1,height-1})+1;
+    std::cout << to_end << "\n";
+    long const to_start = search(map, to_end, {width-1, height-1}, {0,0})+1;
+    long const to_end_again = search(map, to_start, {0,0}, {width-1,height-1})+1;
+    std::cout << to_end_again << "\n";
 }
