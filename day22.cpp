@@ -4,13 +4,6 @@
 #include <string>
 #include <algorithm>
 
-enum class dir_t {
-    LEFT,
-    UP,
-    RIGHT,
-    DOWN,
-};
-
 enum class turn_t {
     NONE,
     LEFT,
@@ -70,114 +63,116 @@ std::pair<grid<char>, std::vector<op_t>> parse_input(std::istream& is) {
     return {std::move(builder).finish(), std::move(ops)};
 }
 
-dir_t turn(dir_t dir, turn_t turn) {
-    if (turn == turn_t::LEFT) {
-        switch (dir) {
-            case dir_t::RIGHT: return dir_t::UP;
-            case dir_t::UP: return dir_t::LEFT;
-            case dir_t::LEFT: return dir_t::DOWN;
-            case dir_t::DOWN: return dir_t::RIGHT;
-        }
-    } else if (turn == turn_t::RIGHT) {
-        switch (dir) {
-            case dir_t::RIGHT: return dir_t::DOWN;
-            case dir_t::UP: return dir_t::RIGHT;
-            case dir_t::LEFT: return dir_t::UP;
-            case dir_t::DOWN: return dir_t::LEFT;
-        }
-    }
-    return dir;
-}
-
-std::pair<long, long> step(dir_t dir) {
-    switch (dir) {
-        case dir_t::LEFT: return {-1, 0};
-        case dir_t::UP: return {0, -1};
-        case dir_t::RIGHT: return {1, 0};
-        case dir_t::DOWN: return {0, 1};
-    }
-    return {0,0};
-}
-
-struct pos_t {
+struct vector3 {
     long x = 0;
     long y = 0;
-    dir_t dir = dir_t::RIGHT;
+    long z = 0;
 };
 
-struct map_t {
-    grid<char> map;
-    std::vector<long> left_edge;
-    std::vector<long> right_edge;
-    std::vector<long> top_edge;
-    std::vector<long> bottom_edge;
+struct state_t {
+    vector3 pos2d;
+    vector3 pos3d;
+    vector3 facing2d;
+    vector3 facing3d;
 };
 
-map_t make_map(grid<char> grid) {
-    std::vector<long> left_edge;
-    std::vector<long> right_edge;
-    for (long y = 0; y < grid.height(); ++y) {
-        auto left = std::find_if(grid.row_begin(y), grid.row_end(y), [](char c) { return c != ' '; });
-        auto right = std::find_if(left, grid.row_end(y), [](char c) { return c == ' '; });
-        left_edge.push_back(left - grid.row_begin(y));
-        right_edge.push_back(right - grid.row_begin(y));
-    }
-    std::vector<long> top_edge;
-    std::vector<long> bottom_edge;
-    for (long x = 0; x < grid.width(); ++x) {
-        auto top = std::find_if(grid.col_begin(x), grid.col_end(x), [](char c) { return c != ' '; });
-        auto bottom = std::find_if(top, grid.col_end(x), [](char c) { return c == ' '; });
-        top_edge.push_back(top - grid.col_begin(x));
-        bottom_edge.push_back(bottom - grid.col_begin(x));
-    }
-    return {std::move(grid), std::move(left_edge), std::move(right_edge), std::move(top_edge), std::move(bottom_edge)};
-}
+class geometry {
+public:
+    virtual ~geometry() = default;
+    [[nodiscard]] virtual state_t turn(state_t state, turn_t turn) const = 0;
+    [[nodiscard]] virtual state_t forward(state_t state) const = 0;
+};
 
-pos_t move(map_t const& map, pos_t pos, op_t op) {
-    pos.dir = turn(pos.dir, op.turn);
-    auto const [dx, dy] = step(pos.dir);
+state_t move(grid<char> const& grid, state_t state, op_t op, geometry const& geo) {
+    state = geo.turn(state, op.turn);
     for (long i = 0; i < op.dist; ++i) {
-        long x = pos.x + dx;
-        long y = pos.y + dy;
-        if (dy == 0 && x < map.left_edge.at(y)) {
-            x = map.right_edge.at(y) - 1;
-        }
-        if (dy == 0 && x >= map.right_edge.at(y)) {
-            x = map.left_edge.at(y);
-        }
-        if (dx == 0 && y < map.top_edge.at(x)) {
-            y = map.bottom_edge.at(x) - 1;
-        }
-        if (dx == 0 && y >= map.bottom_edge.at(x)) {
-            y = map.top_edge.at(x);
-        }
-        if (map.map.at(x, y) == '.') {
-            pos.x = x;
-            pos.y = y;
+        state_t const next = geo.forward(state);
+        if (grid.at(next.pos2d.x, next.pos2d.y) == '.') {
+            state = next;
         }
     }
-    return pos;
+    return state;
 }
 
-long score(dir_t dir) {
-    switch (dir) {
-        case dir_t::RIGHT: return 0;
-        case dir_t::UP: return 3;
-        case dir_t::LEFT: return 2;
-        case dir_t::DOWN: return 1;
-        default: return 0;
+class geo2d_t: public geometry {
+public:
+    explicit geo2d_t(grid<char> const& map): map(map) {}
+
+    static state_t rotate_left(state_t state) {
+        // Rot matrix:
+        // [ 0  1
+        //  -1  0]
+        return state_t{state.pos2d,
+                       state.pos3d,
+                       {state.facing2d.y, -state.facing2d.x, state.facing2d.z},
+                       {state.facing3d.y, -state.facing3d.x, state.facing3d.z}};
     }
+
+    [[nodiscard]] state_t turn(state_t state, turn_t turn) const override {
+        // z-points into the floor to make a right-handed system.
+        if (turn == turn_t::LEFT) {
+            state = rotate_left(state);
+        } else if (turn== turn_t::RIGHT) {
+            state = rotate_left(rotate_left(rotate_left(state)));
+        }
+        return state;
+    }
+
+    [[nodiscard]] state_t forward(state_t state) const override {
+        long new_x = state.pos2d.x + state.facing2d.x;
+        long new_y = state.pos2d.y + state.facing2d.y;
+        if (state.facing2d.x != 0 && (new_x < 0 || new_x >= map.width() || map.at(new_x, new_y) == ' ')) {
+            if (state.facing2d.x > 0) {
+                auto left_edge = std::find_if(map.row_begin(new_y), map.row_end(new_y), [](char c) { return c != ' '; });
+                new_x = left_edge - map.row_begin(new_y);
+            } else {
+                auto right_edge = std::find_if(map.row_begin(new_y) + state.pos2d.x, map.row_end(new_y), [](char c) { return c == ' '; });
+                new_x = (right_edge - map.row_begin(new_y)) - 1;
+            }
+        }
+        if (state.facing2d.y != 0 && (new_y < 0 || new_y >= map.height() || map.at(new_x, new_y) == ' ')) {
+            if (state.facing2d.y > 0) {
+                auto top_edge = std::find_if(map.col_begin(new_x), map.col_end(new_x), [](char c) { return c != ' '; });
+                new_y = top_edge - map.col_begin(new_x);
+            } else {
+                auto bottom_edge = std::find_if(map.col_begin(new_x) + state.pos2d.y, map.col_end(new_x), [](char c) { return c == ' '; });
+                new_y = (bottom_edge - map.col_begin(new_x)) - 1;
+            }
+        }
+        return state_t{{new_x, new_y, state.pos2d.z},
+                       {new_x, new_y, state.pos2d.z},
+                       state.facing2d,
+                       state.facing3d};
+    }
+
+private:
+    grid<char> const& map;
+};
+
+long score(vector3 const& facing2d) {
+    if (facing2d.x > 0) {
+        return 0;
+    } else if (facing2d.x < 0) {
+        return 2;
+    } else if (facing2d.y > 0) {
+        return 1;
+    } else {
+        return 3;
+    }
+}
+
+long score(state_t const& state) {
+    return 1000 * (state.pos2d.y + 1) + 4 * (state.pos2d.x + 1) + score(state.facing2d);
 }
 
 int main() {
     auto const [grid, path] = parse_input(std::cin);
-    map_t const map = make_map(grid);
-
-    pos_t pos;
-    pos.x = map.left_edge.at(0);
+    long const start_x = std::find_if(grid.row_begin(0), grid.row_end(0), [](char c) { return c != ' '; }) - grid.row_begin(0);
+    state_t state{{start_x, 0, 0}, {start_x, 0, 0}, {1, 0, 0}, {1, 0, 0}};
+    geo2d_t geo2d{grid};
 
     for (op_t const op : path) {
-        pos = move(map, pos, op);
+        state = move(grid, state, op, geo2d);
     }
-    std::cout << (1000 * (pos.y + 1) + 4 * (pos.x + 1) + score(pos.dir)) << "\n";
+    std::cout << score(state) << "\n";
 }
