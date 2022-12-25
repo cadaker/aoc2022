@@ -121,8 +121,8 @@ long time_until_obsidian(state_t const& state, long obsidian) {
     return until(state.obsidian, obsidian, state.obsidian_robots);
 }
 
-long search(blueprint const& bp) {
-    std::vector<state_t> stack = {{24, 0, 0, 0, 0, 1, 0, 0, 0}};
+long search(blueprint const& bp, long total_time) {
+    std::vector<state_t> stack = {{total_time, 0, 0, 0, 0, 1, 0, 0, 0}};
     long most_geodes = 0;
 
     while (!stack.empty()) {
@@ -172,8 +172,14 @@ int main() {
 
     long total_quality = 0;
     for (long i = 0; i < static_cast<long>(input.size()); ++i) {
-        long const geodes = search(input[i]);
+        long const geodes = search(input[i], 24);
         total_quality += (i+1) * geodes;
     }
     std::cout << total_quality << "\n";
+
+    std::cout << (
+            search(input.at(0), 32) *
+            search(input.at(1), 32) *
+            search(input.at(2), 32)
+            ) << "\n";
 }
