@@ -121,7 +121,7 @@ void vote(long x, long y, std::vector<direction> const& dirs, sparse_grid<char> 
     votes.set(x, y, {x,y});
 }
 
-sparse_grid<char> evolve(sparse_grid<char> const& grid, std::vector<direction> const& dirs) {
+bool evolve(sparse_grid<char>& grid, std::vector<direction> const& dirs) {
     sparse_grid<coord_t> votes;
     for (auto [xy, occupied] : grid) {
         vote(xy.x, xy.y, dirs, grid, votes);
@@ -132,19 +132,24 @@ sparse_grid<char> evolve(sparse_grid<char> const& grid, std::vector<direction> c
         vote_counts.ref(dst_xy.x, dst_xy.y)++;
     }
 
+    bool anyone_moved = false;
     sparse_grid<char> result;
     for (auto [xy, occupied] : grid) {
         auto const dst = votes.ref(xy.x, xy.y);
         if (vote_counts.ref(dst.x, dst.y) == 1) {
+            if (dst.x != xy.x || dst.y != xy.y) {
+                anyone_moved = true;
+            }
             result.set(dst.x, dst.y, 1);
         } else {
             result.set(xy.x, xy.y, 1);
         }
     }
-    return result;
+    grid = std::move(result);
+    return anyone_moved;
 }
 
-sparse_grid<char> step(sparse_grid<char> const& grid, std::vector<direction>& dirs) {
+bool step(sparse_grid<char>& grid, std::vector<direction>& dirs) {
     auto output = evolve(grid, dirs);
     std::rotate(dirs.begin(), dirs.begin()+1, dirs.end());
     return output;
@@ -171,7 +176,13 @@ int main() {
     std::vector<direction> dirs{direction::NORTH, direction::SOUTH, direction::WEST, direction::EAST};
     auto grid = initial;
     for (size_t i = 0; i < 10; ++i) {
-        grid = step(grid, dirs);
+        step(grid, dirs);
     }
     std::cout << count_open(grid) << "\n";
+
+    size_t iter = 10;
+    do {
+        ++iter;
+    } while(step(grid, dirs));
+    std::cout << iter << "\n";
 }
